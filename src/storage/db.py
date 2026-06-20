@@ -67,7 +67,7 @@ class Database:
         conn = self._get_conn()
         conn.executescript(schema)
         conn.commit()
-        logger.info(f"✅ Database initialized at: {self.db_path}")
+        logger.info(f"[OK] Database initialized at: {self.db_path}")
 
     def close(self):
         if self._conn:
