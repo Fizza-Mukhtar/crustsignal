@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CrustSignal</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0f14;
+    --sidebar:   #13161d;
+    --card:      #1a1e28;
+    --card-hover:#1f2435;
+    --border:    #252a38;
+    --text:      #e2e8f0;
+    --muted:     #6b7280;
+    --accent:    #6366f1;
+    --accent2:   #818cf8;
+    --green:     #10b981;
+    --red:       #ef4444;
+    --yellow:    #f59e0b;
+    --orange:    #f97316;
+    --blue:      #3b82f6;
+    --purple:    #8b5cf6;
+    --pink:      #ec4899;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: var(--sidebar);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .logo-dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+  .stats-bar {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.2;
+  }
+  .stat-val {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .stat-val.green { color: var(--green); }
+  .stat-val.accent { color: var(--accent2); }
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .stat-divider {
+    width: 1px; height: 28px;
+    background: var(--border);
+  }
+  .mode-badge {
+    padding: 4px 10px;
+    background: rgba(99,102,241,0.15);
+    border: 1px solid rgba(99,102,241,0.3);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--accent2);
+    font-weight: 500;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── LEFT SIDEBAR ── */
+  .sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 600;
+  }
+  .lead-list {
+    overflow-y: auto;
+    flex: 1;
+  }
+  .lead-list::-webkit-scrollbar { width: 4px; }
+  .lead-list::-webkit-scrollbar-track { background: transparent; }
+  .lead-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .lead-item {
+    padding: 14px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .lead-item:hover { background: var(--card-hover); }
+  .lead-item.active {
+    background: var(--card);
+    border-left: 2px solid var(--accent);
+    padding-left: 14px;
+  }
+
+  .company-favicon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .company-favicon img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+
+  .lead-info { flex: 1; min-width: 0; }
+  .lead-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lead-domain {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .lead-score {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .score-high   { background: rgba(16,185,129,0.15); color: var(--green); }
+  .score-mid    { background: rgba(245,158,11,0.15);  color: var(--yellow); }
+  .score-low    { background: rgba(249,115,22,0.15);  color: var(--orange); }
+
+  .lead-status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-approved { background: var(--green); }
+  .dot-pending  { background: var(--yellow); }
+  .dot-rejected { background: var(--red); }
+
+  /* ── RIGHT PANEL ── */
+  .detail-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .detail-panel::-webkit-scrollbar { width: 6px; }
+  .detail-panel::-webkit-scrollbar-track { background: transparent; }
+  .detail-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    gap: 12px;
+  }
+  .empty-icon { font-size: 40px; }
+  .empty-text { font-size: 14px; }
+
+  /* ── COMPANY HEADER ── */
+  .company-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .company-logo-big {
+    width: 52px; height: 52px;
+    border-radius: 12px;
+    background: var(--card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 800;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .company-logo-big img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
+  .company-meta { flex: 1; }
+  .company-title {
+    font-size: 22px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .company-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .company-subtitle a {
+    color: var(--accent2);
+    text-decoration: none;
+  }
+  .company-subtitle a:hover { text-decoration: underline; }
+
+  .icp-bar {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .icp-track {
+    flex: 1;
+    height: 5px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .icp-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.6s ease;
+  }
+  .icp-label {
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 50px;
+    text-align: right;
+  }
+
+  /* ── SECTION CARDS ── */
+  .section-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: visible;
+  }
+  .section-title {
+    padding: 13px 18px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 12px 12px 0 0;
+    background: var(--card);
+  }
+
+  /* ── CONTACT SECTION ── */
+  .contact-row {
+    padding: 20px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+  .avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    flex-shrink: 0;
+    color: white;
+    position: relative;
+    z-index: 1;
+  }
+  .contact-info { flex: 1; min-width: 0; overflow: hidden; }
+  .contact-name {
+    font-size: 14px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .contact-title-text {
+    font-size: 12px; color: var(--muted); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .linkedin-link {
+    font-size: 11px;
+    color: var(--accent2);
+    text-decoration: none;
+    padding: 5px 12px;
+    border: 1px solid rgba(99,102,241,0.3);
+    border-radius: 6px;
+    transition: background 0.15s;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .linkedin-link:hover { background: rgba(99,102,241,0.1); }
+
+  /* ── SIGNALS ── */
+  .signals-grid {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .signal-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .signal-badge {
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .badge-funding        { background: rgba(16,185,129,0.15); color: var(--green); }
+  .badge-linkedin_post  { background: rgba(59,130,246,0.15);  color: var(--blue); }
+  .badge-job_posting    { background: rgba(245,158,11,0.15);  color: var(--yellow); }
+  .badge-headcount_growth { background: rgba(139,92,246,0.15); color: var(--purple); }
+  .badge-web_traffic    { background: rgba(236,72,153,0.15);  color: var(--pink); }
+
+  .signal-strength-bar {
+    height: 3px;
+    border-radius: 99px;
+    margin-top: 6px;
+  }
+  .signal-value { font-size: 13px; color: var(--text); flex: 1; }
+
+  /* ── EMAIL DRAFT ── */
+  .email-subject {
+    padding: 16px 18px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .email-body {
+    padding: 14px 18px 18px;
+    font-size: 14px;
+    line-height: 1.75;
+    color: #c9d1e0;
+    white-space: pre-wrap;
+    font-family: "Georgia", serif;
+  }
+  .email-meta {
+    padding: 0 18px 14px;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    gap: 12px;
+  }
+  .email-divider { height: 1px; background: var(--border); margin: 0 18px; }
+
+  /* ── ACTION BUTTONS ── */
+  .action-row {
+    padding: 16px 18px;
+    display: flex;
+    gap: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-approve {
+    background: rgba(16,185,129,0.15);
+    color: var(--green);
+    border: 1px solid rgba(16,185,129,0.3);
+  }
+  .btn-approve:hover { background: rgba(16,185,129,0.25); }
+  .btn-approve.active {
+    background: var(--green);
+    color: #fff;
+    border-color: var(--green);
+  }
+  .btn-reject {
+    background: rgba(239,68,68,0.1);
+    color: var(--red);
+    border: 1px solid rgba(239,68,68,0.25);
+  }
+  .btn-reject:hover { background: rgba(239,68,68,0.2); }
+  .btn-reject.active {
+    background: var(--red);
+    color: #fff;
+    border-color: var(--red);
+  }
+  .status-pill {
+    margin-left: auto;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .pill-approved { background: rgba(16,185,129,0.15); color: var(--green); }
+  .pill-pending  { background: rgba(245,158,11,0.1);  color: var(--yellow); }
+  .pill-rejected { background: rgba(239,68,68,0.1);   color: var(--red); }
+
+  /* ── LOADING ── */
+  .loading {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; color: var(--muted); font-size: 14px; gap: 10px;
+  }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    CrustSignal
+  </div>
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-val accent" id="stat-leads">—</span>
+      <span class="stat-label">Leads</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <span class="stat-val accent" id="stat-drafts">—</span>
+      <span class="stat-label">Drafts</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <span class="stat-val green" id="stat-approved">—</span>
+      <span class="stat-label">Approved</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="mode-badge" id="mode-badge">🎭 Mock Mode</div>
+  </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main">
+
+  <!-- LEFT SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">Leads — sorted by ICP score</div>
+    <div class="lead-list" id="lead-list">
+      <div class="loading"><div class="spinner"></div> Loading leads…</div>
+    </div>
+  </div>
+
+  <!-- RIGHT DETAIL PANEL -->
+  <div class="detail-panel" id="detail-panel">
+    <div class="empty-state">
+      <div class="empty-icon">👈</div>
+      <div class="empty-text">Select a lead to review the email draft</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let leads = [];
+let selectedId = null;
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+async function boot() {
+  await Promise.all([loadStats(), loadLeads()]);
+}
+
+async function loadStats() {
+  try {
+    const r = await fetch('/api/stats');
+    const s = await r.json();
+    document.getElementById('stat-leads').textContent    = s.total_leads    ?? 0;
+    document.getElementById('stat-drafts').textContent   = s.total_drafts   ?? 0;
+    document.getElementById('stat-approved').textContent = s.approved_drafts ?? 0;
+  } catch(e) { console.error('stats error', e); }
+}
+
+async function loadLeads() {
+  try {
+    const r = await fetch('/api/leads');
+    leads = await r.json();
+    renderLeadList();
+    if (leads.length) selectLead(leads[0].id);
+  } catch(e) {
+    document.getElementById('lead-list').innerHTML =
+      '<div style="padding:20px;color:#ef4444;font-size:13px;">⚠ Could not load leads.<br>Make sure you ran: python run_pipeline.py first.</div>';
+  }
+}
+
+// ── RENDER LEAD LIST ───────────────────────────────────────────────────────
+function renderLeadList() {
+  const el = document.getElementById('lead-list');
+  if (!leads.length) {
+    el.innerHTML = '<div style="padding:20px;color:#6b7280;font-size:13px;">No leads yet.<br>Run: python run_pipeline.py</div>';
+    return;
+  }
+  el.innerHTML = leads.map(lead => {
+    const score = lead.icp_score ?? 0;
+    const scoreClass = score >= 0.85 ? 'score-high' : score >= 0.70 ? 'score-mid' : 'score-low';
+    const statusClass = lead.draft?.approved ? 'dot-approved' : 'dot-pending';
+    const initial = (lead.company_name || '?')[0].toUpperCase();
+    const domain  = lead.company_domain || '';
+    const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : '';
+
+    return `
+    <div class="lead-item" id="item-${lead.id}" onclick="selectLead('${lead.id}')">
+      <div class="company-favicon">
+        ${faviconUrl
+          ? `<img src="${faviconUrl}" alt="${initial}" onerror="this.parentElement.textContent='${initial}'">`
+          : initial}
+      </div>
+      <div class="lead-info">
+        <div class="lead-name">${esc(lead.company_name)}</div>
+        <div class="lead-domain">${esc(domain)}</div>
+      </div>
+      <div class="lead-score ${scoreClass}">${(score * 100).toFixed(0)}</div>
+      <div class="lead-status-dot ${statusClass}"></div>
+    </div>`;
+  }).join('');
+}
+
+// ── SELECT LEAD ────────────────────────────────────────────────────────────
+function selectLead(id) {
+  selectedId = id;
+  document.querySelectorAll('.lead-item').forEach(el => el.classList.remove('active'));
+  const item = document.getElementById(`item-${id}`);
+  if (item) item.classList.add('active');
+
+  const lead = leads.find(l => l.id === id);
+  if (lead) renderDetail(lead);
+}
+
+// ── RENDER DETAIL ──────────────────────────────────────────────────────────
+function renderDetail(lead) {
+  const score    = lead.icp_score ?? 0;
+  const contact  = lead.contact ?? {};
+  const signals  = lead.signals ?? [];
+  const draft    = lead.draft;
+  const domain   = lead.company_domain || '';
+  const initial  = (lead.company_name || '?')[0].toUpperCase();
+  const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : '';
+
+  // Score bar colour
+  const fillColor = score >= 0.85 ? '#10b981' : score >= 0.70 ? '#f59e0b' : '#f97316';
+  const scoreLabel = score >= 0.85 ? 'Excellent ICP fit' : score >= 0.70 ? 'Good ICP fit' : 'Moderate ICP fit';
+  const initials = (contact.full_name || 'F').split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+
+  // Signal badges HTML
+  const signalsHtml = signals.length
+    ? signals.slice(0, 5).map(sig => {
+        const strength = sig.hook_strength ?? 0.5;
+        const barColor = strength >= 0.85 ? '#10b981' : strength >= 0.7 ? '#3b82f6' : '#f59e0b';
+        return `
+        <div class="signal-row">
+          <span class="signal-badge badge-${sig.signal_type}">${sig.signal_type.replace('_',' ')}</span>
+          <div style="flex:1">
+            <div class="signal-value">${esc(sig.signal_value)}</div>
+            <div class="signal-strength-bar" style="width:${(strength*100).toFixed(0)}%;background:${barColor}"></div>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div style="padding:4px 0;color:#6b7280;font-size:13px;">No signals extracted</div>';
+
+  // Draft section
+  let draftHtml = '';
+  if (draft) {
+    const isApproved = draft.approved === 1 || draft.approved === true;
+    const isRejected = draft.approved === 0 && draft.rejection_reason;
+    const pillClass  = isApproved ? 'pill-approved' : 'pill-pending';
+    const pillText   = isApproved ? '✅ Approved' : '⏳ Pending review';
+
+    draftHtml = `
+    <div class="section-card">
+      <div class="section-title">📧 Email Draft
+        <span style="margin-left:auto;font-size:10px;color:#6b7280;text-transform:none;letter-spacing:0;">
+          via ${draft.generation_model || 'AI'}
+        </span>
+      </div>
+      <div class="email-subject">${esc(draft.subject_line)}</div>
+      <div class="email-divider" style="margin-top:12px"></div>
+      <div class="email-body">${esc(draft.email_body)}</div>
+      <div class="email-meta">
+        <span>To: ${esc(contact.full_name || 'Founder')}</span>
+        <span>·</span>
+        <span>From: Abhilash @ CrustData</span>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-approve ${isApproved ? 'active' : ''}"
+          id="btn-approve-${draft.id}"
+          onclick="approve('${draft.id}')">
+          ✅ Approve
+        </button>
+        <button class="btn btn-reject"
+          id="btn-reject-${draft.id}"
+          onclick="rejectDraft('${draft.id}')">
+          ❌ Reject
+        </button>
+        <div class="status-pill ${pillClass}" id="pill-${draft.id}">${pillText}</div>
+      </div>
+    </div>`;
+  } else {
+    draftHtml = `
+    <div class="section-card">
+      <div class="section-title">📧 Email Draft</div>
+      <div style="padding:20px;color:#6b7280;font-size:13px;">
+        No email draft yet for this lead.
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('detail-panel').innerHTML = `
+    <!-- Company Header -->
+    <div class="company-header">
+      <div class="company-logo-big">
+        ${faviconUrl
+          ? `<img src="${faviconUrl}" alt="${initial}" onerror="this.parentElement.textContent='${initial}'">`
+          : initial}
+      </div>
+      <div class="company-meta">
+        <div class="company-title">
+          ${esc(lead.company_name)}
+          <span class="lead-score ${score >= 0.85 ? 'score-high' : score >= 0.70 ? 'score-mid' : 'score-low'}"
+                style="font-size:11px;">
+            ICP ${(score*100).toFixed(0)}
+          </span>
+        </div>
+        <div class="company-subtitle">
+          <a href="https://${domain}" target="_blank">${esc(domain)}</a>
+          <span>·</span>
+          <span>${esc(lead.industry || 'Technology')}</span>
+          ${lead.headcount ? `<span>·</span><span>${lead.headcount} employees</span>` : ''}
+        </div>
+        <div class="icp-bar">
+          <div class="icp-track">
+            <div class="icp-fill" style="width:${(score*100).toFixed(0)}%;background:${fillColor}"></div>
+          </div>
+          <div class="icp-label" style="color:${fillColor}">${scoreLabel}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact -->
+    <div class="section-card">
+      <div class="section-title">👤 Contact</div>
+      <div class="contact-row">
+        <div class="avatar">${initials}</div>
+        <div class="contact-info">
+          <div class="contact-name">${esc(contact.full_name || 'Unknown')}</div>
+          <div class="contact-title-text">${esc(contact.title || '')}</div>
+        </div>
+        ${contact.linkedin_url
+          ? `<a class="linkedin-link" href="${contact.linkedin_url}" target="_blank">LinkedIn →</a>`
+          : ''}
+      </div>
+    </div>
+
+    <!-- Signals -->
+    <div class="section-card">
+      <div class="section-title">⚡ Signals
+        <span style="margin-left:6px;font-size:10px;font-weight:400;color:#6b7280;text-transform:none;">
+          sorted by hook strength
+        </span>
+      </div>
+      <div class="signals-grid">${signalsHtml}</div>
+    </div>
+
+    <!-- Draft -->
+    ${draftHtml}
+  `;
+}
+
+// ── ACTIONS ────────────────────────────────────────────────────────────────
+async function approve(draftId) {
+  await fetch(`/api/drafts/${draftId}/approve`, { method: 'POST' });
+
+  // Update UI
+  const btn  = document.getElementById(`btn-approve-${draftId}`);
+  const pill = document.getElementById(`pill-${draftId}`);
+  if (btn)  btn.classList.add('active');
+  if (pill) { pill.className = 'status-pill pill-approved'; pill.textContent = '✅ Approved'; }
+
+  // Update lead in state
+  const lead = leads.find(l => l.draft && l.draft.id === draftId);
+  if (lead && lead.draft) lead.draft.approved = 1;
+
+  // Update sidebar dot
+  if (lead) {
+    const dot = document.querySelector(`#item-${lead.id} .lead-status-dot`);
+    if (dot) { dot.className = 'lead-status-dot dot-approved'; }
+  }
+
+  await loadStats();
+}
+
+async function rejectDraft(draftId) {
+  await fetch(`/api/drafts/${draftId}/reject`, { method: 'POST' });
+
+  const pill = document.getElementById(`pill-${draftId}`);
+  if (pill) { pill.className = 'status-pill pill-pending'; pill.textContent = '❌ Rejected'; }
+  await loadStats();
+}
+
+// ── UTIL ───────────────────────────────────────────────────────────────────
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+// ── START ──────────────────────────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>
