@@ -9,11 +9,12 @@ Every morning it finds newly funded AI companies that match CrustData's ICP, pul
 
 ## The Idea
 
-CrustData sells real-time B2B data to companies building AI SDRs and sales tools.
+CrustData sells real-time B2B data to companies building AI SDRs, recruiting tools, and GTM automation.
 
-The irony: CrustData itself has no outbound motion despite having the best possible tool for it.
+They grew to $4M ARR almost entirely through inbound — zero outbound spend, one salesperson. That means the best real-time B2B data API on the market has never been turned on itself.
 
-**CrustSignal fixes that.** It uses CrustData's own APIs to:
+CrustSignal does exactly that. It uses CrustData's own APIs to:
+
 1. Find companies that should be using CrustData
 2. Pull the exact signals that make them a hot prospect right now
 3. Draft a personalized email that references those specific signals
@@ -200,4 +201,3 @@ crustsignal/
 | Groq API cost | $0.00 |
 | CrustData credits (demo) | ~8 |
 
----
