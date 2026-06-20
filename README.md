@@ -1,63 +1,95 @@
-# CrustSignal 🎯
+# CrustSignal
 
-> An AI-powered outbound engine that uses CrustData's own APIs to find, score, and draft personalized cold emails for CrustData's ideal customers — every morning, automatically.
+> An AI-powered outbound engine built **for** CrustData, **using** CrustData.
 
-Built as a project to demonstrate deep understanding of CrustData's product and data infrastructure.
+Every morning it finds newly funded AI companies that match CrustData's ICP, pulls their live signals, and drafts personalized cold emails — automatically.
 
----
-
-## What it does
-
-Every morning, CrustSignal:
-
-1. **Discovers** newly funded AI/SaaS companies using CrustData's Company Search API
-2. **Scores** each company against CrustData's ICP (funding recency, headcount growth, industry fit, size)
-3. **Enriches** qualified companies — pulling hiring signals, headcount trends, funding details
-4. **Finds** the right contact (CTO, Head of Data, Founder) using People Search API
-5. **Reads** their recent LinkedIn posts via Posts API for personalization hooks
-6. **Drafts** a hyper-personalized cold email using those exact signals (via Groq LLM)
-7. **Serves** a review UI where you can approve/reject each draft + a Slack morning digest
-
-**The twist:** This uses CrustData's own product to generate pipeline for CrustData. Maximum dogfooding.
 
 ---
 
-## Architecture
+## The Idea
+
+CrustData sells real-time B2B data to companies building AI SDRs and sales tools.
+
+The irony: CrustData itself has no outbound motion despite having the best possible tool for it.
+
+**CrustSignal fixes that.** It uses CrustData's own APIs to:
+1. Find companies that should be using CrustData
+2. Pull the exact signals that make them a hot prospect right now
+3. Draft a personalized email that references those specific signals
+4. Surface everything in a review UI so a human can approve and send
+
+---
+
+## Demo
+
+### Pipeline running (terminal)
+```
+Stage 1/4  Discovering ICP companies...
+   Found 8 companies → 8 qualified (score ≥ 0.6)
+
+  → Keyplay  (score: 0.87)
+     Contact: Adam Schoenfeld (CEO & Co-Founder)
+     Signals: linkedin_post, funding, job_posting
+     Email: ✅ "Saw your post on real-time signal pipeline"
+
+  → Topo  (score: 1.00)
+     Contact: Nicolas Vandenberghe (CEO & Co-Founder)
+     Signals: funding, linkedin_post, job_posting
+     Email: ✅ "$3.8M for real-time AI outbound"
+     
+Pipeline Run Complete ✅
+8 leads · 8 emails · ~38 seconds
+```
+
+### Review UI (`localhost:8000`)
+- Dark two-panel interface
+- Company list with ICP scores on the left
+- Signal breakdown + email draft on the right
+- One-click Approve / Reject
+
+See [`examples/sample_emails.md`](examples/sample_emails.md) for real email output.
+
+---
+
+## How It Works
 
 ```
-CRON JOB (runs 6am daily)
-       │
-       ▼
-┌─────────────────────┐
-│  1. DISCOVERY       │   Company Search API → filter by industry, headcount, funding
-│  company_search.py  │   Returns ~200 companies/run
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  2. ICP SCORING     │   Score: industry match + funding recency
-│  scoring rubric     │         + headcount growth + size fit
-└──────────┬──────────┘   Threshold: 0.60 → ~20-30 qualify
-           │
-           ▼
-┌─────────────────────┐
-│  3. SIGNAL PULL     │   Company Enrichment: headcount trend, funding details
-│  enrichment.py      │   Jobs API: open engineering/data roles
-│                     │   People Search: CTO / founder
-│                     │   Posts API: what they've posted recently
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  4. EMAIL GEN       │   Groq (llama-3.3-70b) generates subject + 5-sentence email
-│  email_gen.py       │   Personalized to specific signals
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  5. OUTPUT          │   SQLite DB → FastAPI → Web Review UI
-│  review UI + Slack  │   Morning Slack digest with top 3 leads
-└─────────────────────┘
+CRON / Manual trigger
+        │
+        ▼
+┌───────────────────┐
+│  1. DISCOVERY     │  Company Search API — filter by industry,
+│                   │  headcount, recent funding, hiring signals
+└────────┬──────────┘
+         │  ~200 companies scanned
+         ▼
+┌───────────────────┐
+│  2. ICP SCORING   │  Score 0–100:
+│                   │  Industry match   30 pts
+│                   │  Funding recency  25 pts
+│                   │  Headcount growth 25 pts
+│                   │  Size fit         20 pts
+│                   │  Threshold: 60+
+└────────┬──────────┘
+         │  ~20 qualified
+         ▼
+┌───────────────────┐
+│  3. ENRICHMENT    │  Company Enrichment API — headcount trend,
+│  + SIGNALS        │  funding details, open jobs, web traffic
+│                   │  People Search API — find CTO / founder
+│                   │  Posts API — recent LinkedIn posts (hooks)
+└────────┬──────────┘
+         ▼
+┌───────────────────┐
+│  4. EMAIL GEN     │  Groq llama-3.3-70b writes a 5-sentence
+│                   │  personalized email using top 3 signals
+└────────┬──────────┘
+         ▼
+┌───────────────────┐
+│  5. REVIEW UI     │  FastAPI + HTML — browse leads, read drafts,
+│                   │  approve / reject with one click
+└───────────────────┘
 ```
 
 ---
@@ -68,49 +100,49 @@ CRON JOB (runs 6am daily)
 |-----|----------|---------|
 | Company Search | `POST /screener/company/search` | ICP discovery |
 | Company Enrichment | `GET /screener/company` | Headcount, funding, jobs |
-| People Search | `POST /screener/person/search` | Find CTO/founder |
-| People Enrichment | `GET /screener/person/enrich` | Full profile |
-| Social Posts | `GET /screener/social_posts` | LinkedIn personalization hooks |
+| People Search | `POST /screener/person/search` | Find CTO / founder |
+| People Enrichment | `GET /screener/person/enrich` | Full contact profile |
+| Social Posts | `GET /screener/social_posts` | LinkedIn post hooks |
 
 ---
 
-## Setup (5 minutes)
+## Setup
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/yourusername/crustsignal.git
+# 1. Clone
+git clone https://github.com/YOUR_USERNAME/crustsignal.git
 cd crustsignal
 
-# 2. Create virtual environment
+# 2. Virtual environment
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+source venv/bin/activate   # Windows: venv\Scripts\activate
 
-# 3. Install dependencies
+# 3. Install
 pip install -r requirements.txt
 
-# 4. Set up environment variables
+# 4. Environment variables
 cp .env.example .env
-# Open .env and add your keys:
-#   CRUSTDATA_API_KEY  → from crustdata.com
-#   GROQ_API_KEY       → from console.groq.com (free)
+# Add CRUSTDATA_API_KEY and GROQ_API_KEY to .env
 
-# 5. Run tests to verify everything works
+# 5. Test connection
 python scripts/test_connection.py
 
-# 6. Run the pipeline
-python run_pipeline.py
+# 6. Run pipeline (mock mode — zero API credits)
+python run_pipeline.py --mock
+
+# 7. Open review UI
+python scripts/start_server.py
 ```
 
 ---
 
-## Results (from test run)
+## Running Modes
 
-> *(Updated after first live run)*
-
-- Companies discovered: —
-- Companies qualified: —
-- Emails generated: —
-- Pipeline runtime: —
+| Command | Mode | Credits |
+|---------|------|---------|
+| `python run_pipeline.py --mock` | Fake data, zero credits | 0 |
+| `python run_pipeline.py --live` | Real CrustData API | ~8-20 |
+| `python scripts/demo_run.py` | Real API, 8 handpicked companies | ~8 |
 
 ---
 
@@ -120,35 +152,52 @@ python run_pipeline.py
 crustsignal/
 ├── src/
 │   ├── crustdata/
-│   │   ├── client.py           ← API wrapper (all 5 endpoints)
-│   │   └── company_search.py   ← ICP discovery + scoring
+│   │   ├── client.py           ← API wrapper (5 endpoints, retry logic)
+│   │   ├── company_search.py   ← ICP discovery + scoring algorithm
+│   │   └── mock_data.py        ← Realistic mock data (dev/testing)
 │   ├── pipeline/
-│   │   ├── enrichment.py       ← Signal pulling (Day 3)
-│   │   └── email_gen.py        ← Groq email generation (Day 4)
+│   │   ├── enrichment.py       ← Company + contact enrichment
+│   │   ├── signal_extract.py   ← Signal extraction + ranking
+│   │   ├── email_gen.py        ← Groq email generation
+│   │   └── orchestrator.py     ← Full pipeline (all stages)
 │   ├── storage/
-│   │   ├── db.py               ← SQLite layer
-│   │   └── schema.sql          ← Database schema
-│   └── output/
-│       └── slack.py            ← Morning digest (Day 5)
+│   │   ├── db.py               ← SQLite CRUD layer
+│   │   └── schema.sql          ← DB schema
+│   └── api/
+│       └── main.py             ← FastAPI backend
+├── ui/
+│   └── index.html              ← Review UI (vanilla JS, no framework)
 ├── scripts/
-│   └── test_connection.py      ← Run first to verify setup
-├── ui/                         ← Review interface (Day 5)
-├── examples/                   ← Sample email outputs
-├── .env.example
-├── requirements.txt
-└── run_pipeline.py             ← Main entry point
+│   ├── test_connection.py      ← API health check
+│   ├── demo_run.py             ← Real API demo (8 credits)
+│   ├── start_server.py         ← Launch UI server
+│   └── review_drafts.py        ← Terminal email viewer
+├── examples/
+│   └── sample_emails.md        ← Real email output examples
+├── run_pipeline.py             ← Main entry point
+└── .env.example
 ```
 
 ---
 
-## Built with
+## Tech Stack
 
-- [CrustData API](https://docs.crustdata.com) — real-time B2B data
-- [Groq](https://console.groq.com) — fast LLM inference (llama-3.3-70b)
-- FastAPI — internal review API
-- SQLite — lightweight local storage
-- Rich — terminal output
+- **Data:** [CrustData API](https://crustdata.com) — real-time B2B intelligence
+- **Email AI:** [Groq](https://console.groq.com) — llama-3.3-70b (free tier)
+- **Backend:** FastAPI + SQLite
+- **Frontend:** Vanilla HTML/CSS/JS (no framework)
+- **Terminal UI:** Rich
 
 ---
 
-*Built in one week as part of an internship application to CrustData.*
+## Results
+
+| Metric | Value |
+|--------|-------|
+| Pipeline runtime | ~38 seconds (8 companies) |
+| ICP qualification rate | 100% (handpicked demo set) |
+| Email success rate | 8/8 |
+| Groq API cost | $0.00 |
+| CrustData credits (demo) | ~8 |
+
+---
