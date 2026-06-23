@@ -38,14 +38,30 @@ console = Console()
 # These are real companies in CrustData's ICP:
 # AI SDRs, recruiting platforms, sales intelligence, GTM tools
 DEMO_COMPANIES = [
-    {"domain": "artisan.co",    "name": "Artisan AI"},
-    {"domain": "warmly.ai",     "name": "Warmly"},
-    {"domain": "keyplay.io",    "name": "Keyplay"},
-    {"domain": "default.com",   "name": "Default"},
-    {"domain": "topo.io",       "name": "Topo"},
-    {"domain": "usergems.com",  "name": "UserGems"},
-    {"domain": "scalis.ai",     "name": "Scalis"},
-    {"domain": "pocus.com",     "name": "Pocus"},
+    {"domain": "artisan.co",    "name": "Artisan AI",
+     "industry": "Artificial Intelligence",
+     "description": "AI-powered SDR platform for outbound sales automation"},
+    {"domain": "warmly.ai",     "name": "Warmly",
+     "industry": "Sales Intelligence",
+     "description": "Signal-based sales platform for real-time outbound"},
+    {"domain": "keyplay.io",    "name": "Keyplay",
+     "industry": "Computer Software",
+     "description": "AI account scoring and ICP fit platform for sales teams"},
+    {"domain": "default.com",   "name": "Default",
+     "industry": "Sales Automation",
+     "description": "Inbound lead orchestration and qualification platform"},
+    {"domain": "topo.io",       "name": "Topo",
+     "industry": "Artificial Intelligence",
+     "description": "AI-powered outbound platform for personalized sales automation"},
+    {"domain": "usergems.com",  "name": "UserGems",
+     "industry": "Sales Intelligence",
+     "description": "Job change tracking platform for sales intelligence"},
+    {"domain": "scalis.ai",     "name": "Scalis",
+     "industry": "Human Resources",
+     "description": "AI-native recruiting platform for candidate sourcing"},
+    {"domain": "pocus.com",     "name": "Pocus",
+     "industry": "Computer Software",
+     "description": "Product-led sales platform using product usage signals"},
 ]
 
 # Seniority priority for picking best contact
@@ -174,7 +190,7 @@ def run_demo():
                 fields=(
                     "company_name,headcount,funding_and_investment,"
                     "web_traffic,decision_makers,job_openings,"
-                    "linkedin_profile_url,industry,description"
+                    "linkedin_profile_url"
                 ),
             )
 
@@ -185,32 +201,85 @@ def run_demo():
             stats["discovered"] += 1
 
             # ── Step 2: Build ScoredCompany ──────────────────────────────
-            # Adapt raw response to scorer format
-            growth_data = []
             hc = raw.get("headcount") or {}
+
+            # headcount can be int, dict, or nested — try all formats
             if isinstance(hc, dict):
-                g6 = hc.get("six_month_growth_percent") or 0
-                g1 = hc.get("one_year_growth_percent") or 0
-                growth_data = [
-                    {"timespan": "SIX_MONTHS", "percentage": g6},
-                    {"timespan": "YEAR",        "percentage": g1},
-                ]
+                headcount_count = (
+                    hc.get("latest_count")
+                    or hc.get("count")
+                    or hc.get("employee_count")
+                    or hc.get("headcount")
+                    or 0
+                )
+                g6 = (
+                    hc.get("six_month_growth_percent")
+                    or hc.get("six_month_growth")
+                    or hc.get("growth_6m")
+                    or 0
+                )
+                g1 = (
+                    hc.get("one_year_growth_percent")
+                    or hc.get("annual_growth")
+                    or hc.get("growth_1y")
+                    or 0
+                )
+            else:
+                headcount_count = int(hc) if hc else 0
+                g6 = 0
+                g1 = 0
+
+            # Also check top-level fields (some API versions return flat)
+            if not headcount_count:
+                headcount_count = (
+                    raw.get("employee_count")
+                    or raw.get("headcount_count")
+                    or raw.get("total_employee_count")
+                    or 0
+                )
 
             fi = raw.get("funding_and_investment") or {}
+            growth_data = [
+                {"timespan": "SIX_MONTHS", "percentage": g6},
+                {"timespan": "YEAR",       "percentage": g1},
+            ]
+
+            # Use hardcoded industry + description (not in enrichment API)
             adapted = {
                 "name":       raw.get("company_name") or name,
                 "website":    domain,
                 "linkedin_company_url": raw.get("linkedin_profile_url") or "",
-                "industry":   raw.get("industry") or "",
-                "description": raw.get("description") or "",
-                "employee_count": (
-                    hc.get("latest_count") if isinstance(hc, dict) else int(hc or 0)
-                ),
+                "industry":   company_info["industry"],
+                "description": company_info["description"],
+                "specialties": company_info["description"],
+                "employee_count": headcount_count,
                 "employee_growth_percentages": growth_data,
-                "days_since_last_fundraise": fi.get("days_since_last_fundraise") or 999,
-                "total_funding_raised_usd":  fi.get("total_investment_usd") or 0,
+                "days_since_last_fundraise": (
+                    fi.get("days_since_last_fundraise")
+                    or fi.get("days_since_funding")
+                    or 999
+                ),
+                "total_funding_raised_usd": (
+                    fi.get("total_investment_usd")
+                    or fi.get("total_funding_usd")
+                    or fi.get("last_round_investment_usd")
+                    or 0
+                ),
                 "last_round_type": fi.get("last_round_type") or "",
             }
+
+            # Debug — print raw keys so we can see API response structure
+            console.print(
+                f"     [dim]Raw keys: {list(raw.keys())}[/dim]"
+            )
+            if hc:
+                console.print(
+                    f"     [dim]Headcount raw: {hc}[/dim]"
+                )
+            if fi:
+                console.print(
+                    f"     [dim]Funding raw: {fi}[/dim]"
+                )
 
             scored = build_scored_company(adapted)
             stats["qualified"] += 1
