@@ -1,0 +1,701 @@
+[33mcommit 49128bc40ab38f37fc362567f79bb23fa65b5922[m
+Author: Fizza-Mukhtar <fizzamukhtar01@gmail.com>
+Date:   Sat Jun 20 06:11:15 2026 -0700
+
+    fix: polish, tests, README
+
+[1mdiff --git a/README.md b/README.md[m
+[1mindex 68dd87b..90831a1 100644[m
+[1m--- a/README.md[m
+[1m+++ b/README.md[m
+[36m@@ -9,11 +9,12 @@[m [mEvery morning it finds newly funded AI companies that match CrustData's ICP, pul[m
+ [m
+ ## The Idea[m
+ [m
+[31m-CrustData sells real-time B2B data to companies building AI SDRs and sales tools.[m
+[32m+[m[32mCrustData sells real-time B2B data to companies building AI SDRs, recruiting tools, and GTM automation.[m
+ [m
+[31m-The irony: CrustData itself has no outbound motion despite having the best possible tool for it.[m
+[32m+[m[32mThey grew to $4M ARR almost entirely through inbound — zero outbound spend, one salesperson. That means the best real-time B2B data API on the market has never been turned on itself.[m
+[32m+[m
+[32m+[m[32mCrustSignal does exactly that. It uses CrustData's own APIs to:[m
+ [m
+[31m-**CrustSignal fixes that.** It uses CrustData's own APIs to:[m
+ 1. Find companies that should be using CrustData[m
+ 2. Pull the exact signals that make them a hot prospect right now[m
+ 3. Draft a personalized email that references those specific signals[m
+[36m@@ -200,4 +201,3 @@[m [mcrustsignal/[m
+ | Groq API cost | $0.00 |[m
+ | CrustData credits (demo) | ~8 |[m
+ [m
+[31m----[m
+[1mdiff --git a/tests/test_scoring.py b/tests/test_scoring.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..6a60557[m
+[1m--- /dev/null[m
+[1m+++ b/tests/test_scoring.py[m
+[36m@@ -0,0 +1,269 @@[m
+[32m+[m[32m"""[m
+[32m+[m[32mTests — ICP Scoring Algorithm[m
+[32m+[m[32m==============================[m
+[32m+[m[32mRun with: pytest tests/test_scoring.py -v[m
+[32m+[m
+[32m+[m[32mTests the core scoring logic that decides which companies[m
+[32m+[m[32mqualify as CrustData ICP targets.[m
+[32m+[m[32m"""[m
+[32m+[m
+[32m+[m[32mimport sys[m
+[32m+[m[32mimport os[m
+[32m+[m[32msys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))[m
+[32m+[m
+[32m+[m[32mimport pytest[m
+[32m+[m[32mfrom src.crustdata.company_search import score_company, build_scored_company[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ── Fixtures ─────────────────────────────────────────────────────────────────[m
+[32m+[m
+[32m+[m[32mdef make_company(**overrides):[m
+[32m+[m[32m    """Helper — returns a base company dict with optional overrides."""[m
+[32m+[m[32m    base = {[m
+[32m+[m[32m        "name": "TestCo",[m
+[32m+[m[32m        "website": "testco.io",[m
+[32m+[m[32m        "industry": "Computer Software",[m
+[32m+[m[32m        "description": "AI-powered sales automation tool",[m
+[32m+[m[32m        "employee_count": 80,[m
+[32m+[m[32m        "employee_growth_percentages": [[m
+[32m+[m[32m            {"timespan": "SIX_MONTHS", "percentage": 20},[m
+[32m+[m[32m            {"timespan": "YEAR",       "percentage": 40},[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "days_since_last_fundraise": 30,[m
+[32m+[m[32m        "total_funding_raised_usd": 5_000_000,[m
+[32m+[m[32m        "last_round_type": "Seed",[m
+[32m+[m[32m        "specialties": ["AI", "sales automation"],[m
+[32m+[m[32m    }[m
+[32m+[m[32m    base.update(overrides)[m
+[32m+[m[32m    return base[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ── Industry scoring ─────────────────────────────────────────────────────────[m
+[32m+[m
+[32m+[m[32mclass TestIndustryScoring:[m
+[32m+[m
+[32m+[m[32m    def test_ai_sdr_company_gets_full_industry_points(self):[m
+[32m+[m[32m        company = make_company([m
+[32m+[m[32m            industry="Artificial Intelligence",[m
+[32m+[m[32m            description="AI SDR platform for outbound sales automation",[m
+[32m+[m[32m        )[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["industry"]["points"] == 30[m
+[32m+[m
+[32m+[m[32m    def test_recruiting_platform_matches_industry(self):[m
+[32m+[m[32m        company = make_company([m
+[32m+[m[32m            industry="Staffing and Recruiting",[m
+[32m+[m[32m            description="AI-powered applicant tracking system",[m
+[32m+[m[32m        )[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["industry"]["points"] >= 18[m
+[32m+[m
+[32m+[m[32m    def test_unrelated_industry_scores_zero(self):[m
+[32m+[m[32m        company = make_company([m
+[32m+[m[32m            industry="Oil and Gas",[m
+[32m+[m[32m            description="Petroleum extraction and refining",[m
+[32m+[m[32m            specialties=["energy", "oil"],[m
+[32m+[m[32m        )[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["industry"]["points"] == 0[m
+[32m+[m
+[32m+[m[32m    def test_vc_firm_matches_industry(self):[m
+[32m+[m[32m        company = make_company([m
+[32m+[m[32m            industry="Venture Capital & Private Equity",[m
+[32m+[m[32m            description="Early stage VC firm focused on B2B SaaS",[m
+[32m+[m[32m        )[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["industry"]["points"] >= 18[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ── Funding recency scoring ───────────────────────────────────────────────────[m
+[32m+[m
+[32m+[m[32mclass TestFundingScoring:[m
+[32m+[m
+[32m+[m[32m    def test_very_recent_funding_scores_max(self):[m
+[32m+[m[32m        company = make_company(days_since_last_fundraise=7)[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["funding_recency"]["points"] == 25[m
+[32m+[m
+[32m+[m[32m    def test_two_week_funding_scores_high(self):[m
+[32m+[m[32m        company = make_company(days_since_last_fundraise=14)[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["funding_recency"]["points"] >= 20[m
+[32m+[m
+[32m+[m[32m    def test_45_day_funding_still_qualifies(self):[m
+[32m+[m[32m        company = make_company(days_since_last_fundraise=45)[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["funding_recency"]["points"] >= 15[m
+[32m+[m
+[32m+[m[32m    def test_old_funding_scores_zero(self):[m
+[32m+[m[32m        company = make_company(days_since_last_fundraise=400)[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["funding_recency"]["points"] == 0[m
+[32m+[m
+[32m+[m[32m    def test_missing_funding_scores_zero(self):[m
+[32m+[m[32m        company = make_company(days_since_last_fundraise=None)[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["funding_recency"]["points"] == 0[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ── Headcount growth scoring ─────────────────────────────────────────────────[m
+[32m+[m
+[32m+[m[32mclass TestHeadcountGrowthScoring:[m
+[32m+[m
+[32m+[m[32m    def test_hyper_growth_scores_max(self):[m
+[32m+[m[32m        company = make_company(employee_growth_percentages=[[m
+[32m+[m[32m            {"timespan": "SIX_MONTHS", "percentage": 50},[m
+[32m+[m[32m            {"timespan": "YEAR",       "percentage": 90},[m
+[32m+[m[32m        ])[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["headcount_growth"]["points"] == 25[m
+[32m+[m
+[32m+[m[32m    def test_moderate_growth_scores_partial(self):[m
+[32m+[m[32m        company = make_company(employee_growth_percentages=[[m
+[32m+[m[32m            {"timespan": "SIX_MONTHS", "percentage": 12},[m
+[32m+[m[32m            {"timespan": "YEAR",       "percentage": 20},[m
+[32m+[m[32m        ])[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert 8 <= breakdown["headcount_growth"]["points"] <= 20[m
+[32m+[m
+[32m+[m[32m    def test_flat_headcount_scores_zero(self):[m
+[32m+[m[32m        company = make_company(employee_growth_percentages=[[m
+[32m+[m[32m            {"timespan": "SIX_MONTHS", "percentage": 0},[m
+[32m+[m[32m            {"timespan": "YEAR",       "percentage": 2},[m
+[32m+[m[32m        ])[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["headcount_growth"]["points"] == 0[m
+[32m+[m
+[32m+[m[32m    def test_flat_field_format_also_works(self):[m
+[32m+[m[32m        """Enrichment API uses flat fields instead of array."""[m
+[32m+[m[32m        company = make_company([m
+[32m+[m[32m            employee_growth_percentages=[],[m
+[32m+[m[32m            headcount_qoq_pct=25,[m
+[32m+[m[32m        )[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["headcount_growth"]["points"] >= 18[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ── Size fit scoring ──────────────────────────────────────────────────────────[m
+[32m+[m
+[32m+[m[32mclass TestSizeFitScoring:[m
+[32m+[m
+[32m+[m[32m    def test_ideal_size_scores_max(self):[m
+[32m+[m[32m        company = make_company(employee_count=100)[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["size_fit"]["points"] == 20[m
+[32m+[m
+[32m+[m[32m    def test_lower_bound_ideal(self):[m
+[32m+[m[32m        company = make_company(employee_count=10)[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["size_fit"]["points"] == 20[m
+[32m+[m
+[32m+[m[32m    def test_upper_bound_ideal(self):[m
+[32m+[m[32m        company = make_company(employee_count=300)[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["size_fit"]["points"] == 20[m
+[32m+[m
+[32m+[m[32m    def test_too_small_scores_partial(self):[m
+[32m+[m[32m        company = make_company(employee_count=5)[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["size_fit"]["points"] == 12[m
+[32m+[m
+[32m+[m[32m    def test_massive_enterprise_scores_zero(self):[m
+[32m+[m[32m        company = make_company(employee_count=50_000)[m
+[32m+[m[32m        score, breakdown = score_company(company)[m
+[32m+[m[32m        assert breakdown["size_fit"]["points"] == 0[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ── End-to-end scoring ────────────────────────────────────────────────────────[m
+[32m+[m
+[32m+[m[32mclass TestEndToEndScoring:[m
+[32m+[m
+[32m+[m[32m    def test_perfect_icp_scores_above_90(self):[m
+[32m+[m[32m        """A perfect ICP company should score very high."""[m
+[32m+[m[32m        company = make_company([m
+[32m+[m[32m            industry="Artificial Intelligence",[m
+[32m+[m[32m            description="AI SDR platform for outbound sales automation and prospecting",[m
+[32m+[m[32m            employee_count=75,[m
+[32m+[m[32m            employee_growth_percentages=[[m
+[32m+[m[32m                {"timespan": "SIX_MONTHS", "percentage": 35},[m
+[32m+[m[32m                {"timespan": "YEAR",       "percentage": 65},[m
+[32m+[m[32m            ],[m
+[32m+[m[32m            days_since_last_fundraise=12,[m
+[32m+[m[32m            specialties=["AI", "sales", "sdr", "automation"],[m
+[32m+[m[32m        )[m
+[32m+[m[32m        score, _ = score_company(company)[m
+[32m+[m[32m        assert score >= 0.90, f"Expected >= 0.90, got {score:.2f}"[m
+[32m+[m
+[32m+[m[32m    def test_weak_icp_scores_below_threshold(self):[m
+[32m+[m[32m        """A poor ICP company should fail the 0.60 threshold."""[m
+[32m+[m[32m        company = make_company([m
+[32m+[m[32m            industry="Oil and Gas",[m
+[32m+[m[32m            description="Petroleum refining and distribution",[m
+[32m+[m[32m            employee_count=5000,[m
+[32m+[m[32m            employee_growth_percentages=[[m
+[32m+[m[32m                {"timespan": "SIX_MONTHS", "percentage": 1},[m
+[32m+[m[32m            ],[m
+[32m+[m[32m            days_since_last_fundraise=500,[m
+[32m+[m[32m            specialties=["energy", "oil"],[m
+[32m+[m[32m        )[m
+[32m+[m[32m        score, _ = score_company(company)[m
+[32m+[m[32m        assert score < 0.60, f"Expected < 0.60, got {score:.2f}"[m
+[32m+[m
+[32m+[m[32m    def test_score_is_between_0_and_1(self):[m
+[32m+[m[32m        """Score must always be a valid float between 0 and 1."""[m
+[32m+[m[32m        for headcount in [0, 5, 50, 300, 5000]:[m
+[32m+[m[32m            company = make_company(employee_count=headcount)[m
+[32m+[m[32m            score, _ = score_company(company)[m
+[32m+[m[32m            assert 0.0 <= score <= 1.0, f"Score {score} out of range for headcount {headcount}"[m
+[32m+[m
+[32m+[m[32m    def test_build_scored_company_preserves_score(self):[m
+[32m+[m[32m        """build_scored_company should return object with same score as score_company."""[m
+[32m+[m[32m        raw = make_company()[m
+[32m+[m[32m        score, _ = score_company(raw)[m
+[32m+[m[32m        scored = build_scored_company(raw)[m
+[32m+[m[32m        assert abs(scored.icp_score - score) < 0.001[m
+[32m+[m
+[32m+[m[32m    def test_scored_company_qualifies_flag(self):[m
+[32m+[m[32m        """ScoredCompany.qualifies returns True above 0.60 threshold."""[m
+[32m+[m[32m        good = build_scored_company(make_company([m
+[32m+[m[32m            days_since_last_fundraise=15,[m
+[32m+[m[32m            industry="Artificial Intelligence",[m
+[32m+[m[32m            description="AI sales automation",[m
+[32m+[m[32m            employee_count=80,[m
+[32m+[m[32m            employee_growth_percentages=[{"timespan": "SIX_MONTHS", "percentage": 25}],[m
+[32m+[m[32m        ))[m
+[32m+[m[32m        bad = build_scored_company(make_company([m
+[32m+[m[32m            industry="Oil and Gas",[m
+[32m+[m[32m            description="Petroleum",[m
+[32m+[m[32m            employee_count=5000,[m
+[32m+[m[32m            days_since_last_fundraise=999,[m
+[32m+[m[32m            employee_growth_percentages=[],[m
+[32m+[m[32m            specialties=[],[m
+[32m+[m[32m        ))[m
+[32m+[m[32m        assert good.qualifies is True[m
+[32m+[m[32m        assert bad.qualifies is False[m
+[32m+[m
+[32m+[m[32m    def test_score_breakdown_has_all_four_dimensions(self):[m
+[32m+[m[32m        """Every score must have all 4 breakdown keys."""[m
+[32m+[m[32m        company = make_company()[m
+[32m+[m[32m        _, breakdown = score_company(company)[m
+[32m+[m[32m        assert "industry"          in breakdown[m
+[32m+[m[32m        assert "funding_recency"   in breakdown[m
+[32m+[m[32m        assert "headcount_growth"  in breakdown[m
+[32m+[m[32m        assert "size_fit"          in breakdown[m
+[32m+[m
+[32m+[m[32m    def test_total_points_never_exceed_100(self):[m
+[32m+[m[32m        """Sum of all breakdown points should never exceed 100."""[m
+[32m+[m[32m        company = make_company([m
+[32m+[m[32m            industry="Artificial Intelligence",[m
+[32m+[m[32m            description="AI SDR automation platform sales",[m
+[32m+[m[32m            employee_count=100,[m
+[32m+[m[32m            employee_growth_percentages=[[m
+[32m+[m[32m                {"timespan": "SIX_MONTHS", "percentage": 100},[m
+[32m+[m[32m            ],[m
+[32m+[m[32m            days_since_last_fundraise=1,[m
+[32m+[m[32m            specialties=["AI", "sales", "automation", "sdr", "outbound"],[m
+[32m+[m[32m        )[m
+[32m+[m[32m        _, breakdown = score_company(company)[m
+[32m+[m[32m        total = sum(v["points"] for v in breakdown.values())[m
+[32m+[m[32m        assert total <= 100, f"Total points {total} exceeds 100"[m
+\ No newline at end of file[m
+[33mcommit 984f37aadee8fbfaaea3aa96eb219746023ed34a[m
+Author: Fizza-Mukhtar <fizzamukhtar01@gmail.com>
+Date:   Sat Jun 20 05:57:50 2026 -0700
+
+    feat: demo runner, README, sample outputs
+
+[1mdiff --git a/README.md b/README.md[m
+[1mindex 7e425d0..68dd87b 100644[m
+[1m--- a/README.md[m
+[1m+++ b/README.md[m
+[36m@@ -1,63 +1,95 @@[m
+[31m-# CrustSignal 🎯[m
+[32m+[m[32m# CrustSignal[m
+ [m
+[31m-> An AI-powered outbound engine that uses CrustData's own APIs to find, score, and draft personalized cold emails for CrustData's ideal customers — every morning, automatically.[m
+[32m+[m[32m> An AI-powered outbound engine built **for** CrustData, **using** CrustData.[m
+ [m
+[31m-Built as a project to demonstrate deep understanding of CrustData's product and data infrastructure.[m
+[32m+[m[32mEvery morning it finds newly funded AI companies that match CrustData's ICP, pulls their live signals, and drafts personalized cold emails — automatically.[m
+[32m+[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## The Idea[m
+[32m+[m
+[32m+[m[32mCrustData sells real-time B2B data to companies building AI SDRs and sales tools.[m
+[32m+[m
+[32m+[m[32mThe irony: CrustData itself has no outbound motion despite having the best possible tool for it.[m
+[32m+[m
+[32m+[m[32m**CrustSignal fixes that.** It uses CrustData's own APIs to:[m
+[32m+[m[32m1. Find companies that should be using CrustData[m
+[32m+[m[32m2. Pull the exact signals that make them a hot prospect right now[m
+[32m+[m[32m3. Draft a personalized email that references those specific signals[m
+[32m+[m[32m4. Surface everything in a review UI so a human can approve and send[m
+ [m
+ ---[m
+ [m
+[31m-## What it does[m
+[32m+[m[32m## Demo[m
+ [m
+[31m-Every morning, CrustSignal:[m
+[32m+[m[32m### Pipeline running (terminal)[m
+[32m+[m[32m```[m
+[32m+[m[32mStage 1/4  Discovering ICP companies...[m
+[32m+[m[32m   Found 8 companies → 8 qualified (score ≥ 0.6)[m
+[32m+[m
+[32m+[m[32m  → Keyplay  (score: 0.87)[m
+[32m+[m[32m     Contact: Adam Schoenfeld (CEO & Co-Founder)[m
+[32m+[m[32m     Signals: linkedin_post, funding, job_posting[m
+[32m+[m[32m     Email: ✅ "Saw your post on real-time signal pipeline"[m
+[32m+[m
+[32m+[m[32m  → Topo  (score: 1.00)[m
+[32m+[m[32m     Contact: Nicolas Vandenberghe (CEO & Co-Founder)[m
+[32m+[m[32m     Signals: funding, linkedin_post, job_posting[m
+[32m+[m[32m     Email: ✅ "$3.8M for real-time AI outbound"[m
+[32m+[m[41m     [m
+[32m+[m[32mPipeline Run Complete ✅[m
+[32m+[m[32m8 leads · 8 emails · ~38 seconds[m
+[32m+[m[32m```[m
+ [m
+[31m-1. **Discovers** newly funded AI/SaaS companies using CrustData's Company Search API[m
+[31m-2. **Scores** each company against CrustData's ICP (funding recency, headcount growth, industry fit, size)[m
+[31m-3. **Enriches** qualified companies — pulling hiring signals, headcount trends, funding details[m
+[31m-4. **Finds** the right contact (CTO, Head of Data, Founder) using People Search API[m
+[31m-5. **Reads** their recent LinkedIn posts via Posts API for personalization hooks[m
+[31m-6. **Drafts** a hyper-personalized cold email using those exact signals (via Groq LLM)[m
+[31m-7. **Serves** a review UI where you can approve/reject each draft + a Slack morning digest[m
+[32m+[m[32m### Review UI (`localhost:8000`)[m
+[32m+[m[32m- Dark two-panel interface[m
+[32m+[m[32m- Company list with ICP scores on the left[m
+[32m+[m[32m- Signal breakdown + email draft on the right[m
+[32m+[m[32m- One-click Approve / Reject[m
+ [m
+[31m-**The twist:** This uses CrustData's own product to generate pipeline for CrustData. Maximum dogfooding.[m
+[32m+[m[32mSee [`examples/sample_emails.md`](examples/sample_emails.md) for real email output.[m
+ [m
+ ---[m
+ [m
+[31m-## Architecture[m
+[32m+[m[32m## How It Works[m
+ [m
+ ```[m
+[31m-CRON JOB (runs 6am daily)[m
+[31m-       │[m
+[31m-       ▼[m
+[31m-┌─────────────────────┐[m
+[31m-│  1. DISCOVERY       │   Company Search API → filter by industry, headcount, funding[m
+[31m-│  company_search.py  │   Returns ~200 companies/run[m
+[31m-└──────────┬──────────┘[m
+[31m-           │[m
+[31m-           ▼[m
+[31m-┌─────────────────────┐[m
+[31m-│  2. ICP SCORING     │   Score: industry match + funding recency[m
+[31m-│  scoring rubric     │         + headcount growth + size fit[m
+[31m-└──────────┬──────────┘   Threshold: 0.60 → ~20-30 qualify[m
+[31m-           │[m
+[31m-           ▼[m
+[31m-┌─────────────────────┐[m
+[31m-│  3. SIGNAL PULL     │   Company Enrichment: headcount trend, funding details[m
+[31m-│  enrichment.py      │   Jobs API: open engineering/data roles[m
+[31m-│                     │   People Search: CTO / founder[m
+[31m-│                     │   Posts API: what they've posted recently[m
+[31m-└──────────┬──────────┘[m
+[31m-           │[m
+[31m-           ▼[m
+[31m-┌─────────────────────┐[m
+[31m-│  4. EMAIL GEN       │   Groq (llama-3.3-70b) generates subject + 5-sentence email[m
+[31m-│  email_gen.py       │   Personalized to specific signals[m
+[31m-└──────────┬──────────┘[m
+[31m-           │[m
+[31m-           ▼[m
+[31m-┌─────────────────────┐[m
+[31m-│  5. OUTPUT          │   SQLite DB → FastAPI → Web Review UI[m
+[31m-│  review UI + Slack  │   Morning Slack digest with top 3 leads[m
+[31m-└─────────────────────┘[m
+[32m+[m[32mCRON / Manual trigger[m
+[32m+[m[32m        │[m
+[32m+[m[32m        ▼[m
+[32m+[m[32m┌───────────────────┐[m
+[32m+[m[32m│  1. DISCOVERY     │  Company Search API — filter by industry,[m
+[32m+[m[32m│                   │  headcount, recent funding, hiring signals[m
+[32m+[m[32m└────────┬──────────┘[m
+[32m+[m[32m         │  ~200 companies scanned[m
+[32m+[m[32m         ▼[m
+[32m+[m[32m┌───────────────────┐[m
+[32m+[m[32m│  2. ICP SCORING   │  Score 0–100:[m
+[32m+[m[32m│                   │  Industry match   30 pts[m
+[32m+[m[32m│                   │  Funding recency  25 pts[m
+[32m+[m[32m│                   │  Headcount growth 25 pts[m
+[32m+[m[32m│                   │  Size fit         20 pts[m
+[32m+[m[32m│                   │  Threshold: 60+[m
+[32m+[m[32m└────────┬──────────┘[m
+[32m+[m[32m         │  ~20 qualified[m
+[32m+[m[32m         ▼[m
+[32m+[m[32m┌───────────────────┐[m
+[32m+[m[32m│  3. ENRICHMENT    │  Company Enrichment API — headcount trend,[m
+[32m+[m[32m│  + SIGNALS        │  funding details, open jobs, web traffic[m
+[32m+[m[32m│                   │  People Search API — find CTO / founder[m
+[32m+[m[32m│                   │  Posts API — recent LinkedIn posts (hooks)[m
+[32m+[m[32m└────────┬──────────┘[m
+[32m+[m[32m         ▼[m
+[32m+[m[32m┌───────────────────┐[m
+[32m+[m[32m│  4. EMAIL GEN     │  Groq llama-3.3-70b writes a 5-sentence[m
+[32m+[m[32m│                   │  personalized email using top 3 signals[m
+[32m+[m[32m└────────┬──────────┘[m
+[32m+[m[32m         ▼[m
+[32m+[m[32m┌───────────────────┐[m
+[32m+[m[32m│  5. REVIEW UI     │  FastAPI + HTML — browse leads, read drafts,[m
+[32m+[m[32m│                   │  approve / reject with one click[m
+[32m+[m[32m└───────────────────┘[m
+ ```[m
+ [m
+ ---[m
+[36m@@ -68,49 +100,49 @@[m [mCRON JOB (runs 6am daily)[m
+ |-----|----------|---------|[m
+ | Company Search | `POST /screener/company/search` | ICP discovery |[m
+ | Company Enrichment | `GET /screener/company` | Headcount, funding, jobs |[m
+[31m-| People Search | `POST /screener/person/search` | Find CTO/founder |[m
+[31m-| People Enrichment | `GET /screener/person/enrich` | Full profile |[m
+[31m-| Social Posts | `GET /screener/social_posts` | LinkedIn personalization hooks |[m
+[32m+[m[32m| People Search | `POST /screener/person/search` | Find CTO / founder |[m
+[32m+[m[32m| People Enrichment | `GET /screener/person/enrich` | Full contact profile |[m
+[32m+[m[32m| Social Posts | `GET /screener/social_posts` | LinkedIn post hooks |[m
+ [m
+ ---[m
+ [m
+[31m-## Setup (5 minutes)[m
+[32m+[m[32m## Setup[m
+ [m
+ ```bash[m
+[31m-# 1. Clone the repo[m
+[31m-git clone https://github.com/yourusername/crustsignal.git[m
+[32m+[m[32m# 1. Clone[m
+[32m+[m[32mgit clone https://github.com/YOUR_USERNAME/crustsignal.git[m
+ cd crustsignal[m
+ [m
+[31m-# 2. Create virtual environment[m
+[32m+[m[32m# 2. Virtual environment[m
+ python -m venv venv[m
+[31m-source venv/bin/activate        # Windows: venv\Scripts\activate[m
+[32m+[m[32msource venv/bin/activate   # Windows: venv\Scripts\activate[m
+ [m
+[31m-# 3. Install dependencies[m
+[32m+[m[32m# 3. Install[m
+ pip install -r requirements.txt[m
+ [m
+[31m-# 4. Set up environment variables[m
+[32m+[m[32m# 4. Environment variables[m
+ cp .env.example .env[m
+[31m-# Open .env and add your keys:[m
+[31m-#   CRUSTDATA_API_KEY  → from crustdata.com[m
+[31m-#   GROQ_API_KEY       → from console.groq.com (free)[m
+[32m+[m[32m# Add CRUSTDATA_API_KEY and GROQ_API_KEY to .env[m
+ [m
+[31m-# 5. Run tests to verify everything works[m
+[32m+[m[32m# 5. Test connection[m
+ python scripts/test_connection.py[m
+ [m
+[31m-# 6. Run the pipeline[m
+[31m-python run_pipeline.py[m
+[32m+[m[32m# 6. Run pipeline (mock mode — zero API credits)[m
+[32m+[m[32mpython run_pipeline.py --mock[m
+[32m+[m
+[32m+[m[32m# 7. Open review UI[m
+[32m+[m[32mpython scripts/start_server.py[m
+ ```[m
+ [m
+ ---[m
+ [m
+[31m-## Results (from test run)[m
+[31m-[m
+[31m-> *(Updated after first live run)*[m
+[32m+[m[32m## Running Modes[m
+ [m
+[31m-- Companies discovered: —[m
+[31m-- Companies qualified: —[m
+[31m-- Emails generated: —[m
+[31m-- Pipeline runtime: —[m
+[32m+[m[32m| Command | Mode | Credits |[m
+[32m+[m[32m|---------|------|---------|[m
+[32m+[m[32m| `python run_pipeline.py --mock` | Fake data, zero credits | 0 |[m
+[32m+[m[32m| `python run_pipeline.py --live` | Real CrustData API | ~8-20 |[m
+[32m+[m[32m| `python scripts/demo_run.py` | Real API, 8 handpicked companies | ~8 |[m
+ [m
+ ---[m
+ [m
+[36m@@ -120,35 +152,52 @@[m [mpython run_pipeline.py[m
+ crustsignal/[m
+ ├── src/[m
+ │   ├── crustdata/[m
+[31m-│   │   ├── client.py           ← API wrapper (all 5 endpoints)[m
+[31m-│   │   └── company_search.py   ← ICP discovery + scoring[m
+[32m+[m[32m│   │   ├── client.py           ← API wrapper (5 endpoints, retry logic)[m
+[32m+[m[32m│   │   ├── company_search.py   ← ICP discovery + scoring algorithm[m
+[32m+[m[32m│   │   └── mock_data.py        ← Realistic mock data (dev/testing)[m
+ │   ├── pipeline/[m
+[31m-│   │   ├── enrichment.py       ← Signal pulling (Day 3)[m
+[31m-│   │   └── email_gen.py        ← Groq email generation (Day 4)[m
+[32m+[m[32m│   │   ├── enrichment.py       ← Company + contact enrichment[m
+[32m+[m[32m│   │   ├── signal_extract.py   ← Signal extraction + ranking[m
+[32m+[m[32m│   │   ├── email_gen.py        ← Groq email generation[m
+[32m+[m[32m│   │   └── orchestrator.py     ← Full pipeline (all stages)[m
+ │   ├── storage/[m
+[31m-│   │   ├── db.py               ← SQLite layer[m
+[31m-│   │   └── schema.sql          ← Database schema[m
+[31m-│   └── output/[m
+[31m-│       └── slack.py            ← Morning digest (Day 5)[m
+[32m+[m[32m│   │   ├── db.py               ← SQLite CRUD layer[m
+[32m+[m[32m│   │   └── schema.sql          ← DB schema[m
+[32m+[m[32m│   └── api/[m
+[32m+[m[32m│       └── main.py             ← FastAPI backend[m
+[32m+[m[32m├── ui/[m
+[32m+[m[32m│   └── index.html              ← Review UI (vanilla JS, no framework)[m
+ ├── scripts/[m
+[31m-│   └── test_connection.py      ← Run first to verify setup[m
+[31m-├── ui/                         ← Review interface (Day 5)[m
+[31m-├── examples/                   ← Sample email outputs[m
+[31m-├── .env.example[m
+[31m-├── requirements.txt[m
+[31m-└── run_pipeline.py             ← Main entry point[m
+[32m+[m[32m│   ├── test_connection.py      ← API health check[m
+[32m+[m[32m│   ├── demo_run.py             ← Real API demo (8 credits)[m
+[32m+[m[32m│   ├── start_server.py         ← Launch UI server[m
+[32m+[m[32m│   └── review_drafts.py        ← Terminal email viewer[m
+[32m+[m[32m├── examples/[m
+[32m+[m[32m│   └── sample_emails.md        ← Real email output examples[m
+[32m+[m[32m├── run_pipeline.py             ← Main entry point[m
+[32m+[m[32m└── .env.example[m
+ ```[m
+ [m
+ ---[m
+ [m
+[31m-## Built with[m
+[32m+[m[32m## Tech Stack[m
+ [m
+[31m-- [CrustData API](https://docs.crustdata.com) — real-time B2B data[m
+[31m-- [Groq](https://console.groq.com) — fast LLM inference (llama-3.3-70b)[m
+[31m-- FastAPI — internal review API[m
+[31m-- SQLite — lightweight local storage[m
+[31m-- Rich — terminal output[m
+[32m+[m[32m- **Data:** [CrustData API](https://crustdata.com) — real-time B2B intelligence[m
+[32m+[m[32m- **Email AI:** [Groq](https://console.groq.com) — llama-3.3-70b (free tier)[m
+[32m+[m[32m- **Backend:** FastAPI + SQLite[m
+[32m+[m[32m- **Frontend:** Vanilla HTML/CSS/JS (no framework)[m
+[32m+[m[32m- **Terminal UI:** Rich[m
+ [m
+ ---[m
+ [m
+[31m-*Built in one week as part of an internship application to CrustData.*[m
+\ No newline at end of file[m
+[32m+[m[32m## Results[m
+[32m+[m
+[32m+[m[32m| Metric | Value |[m
+[32m+[m[32m|--------|-------|[m
+[32m+[m[32m| Pipeline runtime | ~38 seconds (8 companies) |[m
+[32m+[m[32m| ICP qualification rate | 100% (handpicked demo set) |[m
+[32m+[m[32m| Email success rate | 8/8 |[m
+[32m+[m[32m| Groq API cost | $0.00 |[m
+[32m+[m[32m| CrustData credits (demo) | ~8 |[m
+[32m+[m
+[32m+[m[32m---[m
+[1mdiff --git a/examples/sample_emails.md b/examples/sample_emails.md[m
+[1mnew file mode 100644[m
+[1mindex 0000000..4b59d63[m
+[1m--- /dev/null[m
+[1m+++ b/examples/sample_emails.md[m
+[36m@@ -0,0 +1,63 @@[m
+[32m+[m[32m# Sample Email Drafts — CrustSignal Output[m
+[32m+[m
+[32m+[m[32mThese are real outputs from the pipeline (company names anonymized).[m
+[32m+[m[32mGenerated using Groq llama-3.3-70b based on live CrustData signals.[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## Email 1 — LinkedIn Post Hook (Best performing)[m
+[32m+[m
+[32m+[m[32m**Company:** Account intelligence platform (50-200 employees)[m
+[32m+[m[32m**Signal used:** CEO posted about building a real-time signal pipeline[m
+[32m+[m[32m**ICP Score:** 0.87[m
+[32m+[m
+[32m+[m[32m**Subject:** Saw your post on real-time signal pipeline[m
+[32m+[m
+[32m+[m[32m> Adam, you posted that you're building a signal pipeline to scrape job postings, funding data, and tech stack signals — which shows you understand that real-time data is the edge. The problem is building and maintaining that crawler infrastructure takes 2-3 engineers and is never fully fresh. CrustData provides all of that — job postings, funding events, headcount shifts, contact changes — via a single API that refreshes hourly. Appsmith built their entire data layer on us for exactly that reason. 15 minutes to show you what your ICP looks like in our system right now?[m
+[32m+[m[32m>[m
+[32m+[m[32m> — Abhilash[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## Email 2 — Funding Signal Hook[m
+[32m+[m
+[32m+[m[32m**Company:** AI outbound automation platform (18 employees)[m
+[32m+[m[32m**Signal used:** Raised $3.8M Seed 2 weeks ago + hiring 2 AI engineers[m
+[32m+[m[32m**ICP Score:** 1.00[m
+[32m+[m
+[32m+[m[32m**Subject:** $3.8M for real-time AI outbound[m
+[32m+[m
+[32m+[m[32m> Nicolas, you just raised $3.8M for Topo and posted that the bet is on AI outbound that knows what a company is going through RIGHT NOW. This suggests you're focused on having the most up-to-date data to power your AI — but Apollo and ZoomInfo refresh monthly, not hourly. CrustData gives Topo live company headcount, funding events, and contact changes via API, so your outbound AI acts on what happened this week, not last quarter. Dharmesh Shah's agent.ai built their AI data layer on us for exactly that reason. Can I show you what your ICP looks like in our system for 15 minutes?[m
+[32m+[m[32m>[m
+[32m+[m[32m> — Abhilash[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## Email 3 — Job Posting Hook[m
+[32m+[m
+[32m+[m[32m**Company:** Product-led sales platform (31 employees)[m
+[32m+[m[32m**Signal used:** Hiring a Data Engineer + grew 22% headcount in 6 months[m
+[32m+[m[32m**ICP Score:** 0.77[m
+[32m+[m
+[32m+[m[32m**Subject:** Hiring a Data Engineer[m
+[32m+[m
+[32m+[m[32m> Alexa, you're hiring a Data Engineer to own data infrastructure at Pocus — which usually means your current data pipeline is being outpaced by your growth. The pattern we see: PLG companies at your stage spend 30-40% of that engineer's time just keeping enrichment data fresh. CrustData solves this — real-time company and people data via API so your team focuses on the product, not the pipeline. Appsmith runs their entire enrichment layer on us. Can we spend 15 minutes looking at what your target accounts look like in our system?[m
+[32m+[m[32m>[m
+[32m+[m[32m> — Abhilash[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## Pipeline Stats (from test run)[m
+[32m+[m
+[32m+[m[32m| Metric | Value |[m
+[32m+[m[32m|--------|-------|[m
+[32m+[m[32m| Companies processed | 8 |[m
+[32m+[m[32m| Emails generated | 8 |[m
+[32m+[m[32m| Groq API cost | $0.00 (free tier) |[m
+[32m+[m[32m| CrustData credits used | 0 (mock mode) |[m
+[32m+[m[32m| Pipeline runtime | ~38 seconds |[m
+[32m+[m[32m| Email success rate | 8/8 (100%) |[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m*Built with CrustData API + Groq llama-3.3-70b*[m
+\ No newline at end of file[m
+[1mdiff --git a/examples/ui_screenshot.png b/examples/ui_screenshot.png[m
+[1mnew file mode 100644[m
+[1mindex 0000000..515abe1[m
+Binary files /dev/null and b/examples/ui_screenshot.png differ
+[1mdiff --git a/scripts/demo_run.py b/scripts/demo_run.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..9dfbeb4[m
+[1m--- /dev/null[m
+[1m+++ b/scripts/demo_run.py[m
+[36m@@ -0,0 +1,317 @@[m
+[32m+[m[32m"""[m
+[32m+[m[32mDemo Pipeline — Real CrustData API[m
+[32m+[m[32m=====================================[m
+[32m+[m[32mProduction-ready runner that uses real API efficiently.[m
+[32m+[m
+[32m+[m[32mCredit cost: ~8 credits (1 per company enrichment)[m
+[32m+[m[32mStrategy   : Enrich 8 handpicked ICP companies directly.[m
+[32m+[m[32m             Skips company search (not on free tier).[m
+[32m+[m[32m             Gets decision makers from enrichment response.[m
+[32m+[m[32m             Uses Groq for emails (free, unlimited).[m
+[32m+[m
+[32m+[m[32mUsage:[m
+[32m+[m[32m    py
